@@ -15,6 +15,8 @@ Ustawienia (zmienne środowiskowe, wzór w `.env.example`): `PORT`, `JWT_SECRET`
 | POST | /api/auth/register | `{username,password}` → `{user,token}` |
 | POST | /api/auth/login | `{username,password}` → `{user,token}` |
 | GET | /api/me | kto jest zalogowany (nagłówek `Authorization: Bearer <token>`) |
+| POST | /api/presence | heartbeat zalogowanego. Zapisuje `last_seen` (czas serwera). |
+| GET | /api/users | lista graczy (zalogowany): `{ users: [{ id, username, online, last_seen, is_owner }] }`. `online` jest prawdziwe, gdy heartbeat był w ciągu ostatnich 60 s. `is_owner` dla nicku `OWNER_USERNAME` (domyślnie `kubvss`) albo konta `id` 1. |
 | GET | /api/lfd | lista ogłoszeń |
 | POST | /api/lfd | `{role,rank,text}` (zalogowany) |
 | DELETE | /api/lfd/:id | usuń swoje ogłoszenie |

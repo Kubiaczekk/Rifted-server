@@ -14,6 +14,11 @@ const tok = u => jwt.sign({ id: u.id, username: u.username }, SECRET, { expiresI
 const numId = v => { const n = Number(v); return Number.isInteger(n) && n > 0 ? n : 0; };
 const OWNER_USERNAME = () => String(process.env.OWNER_USERNAME || 'kubvss');
 const isOwner = u => !!u && (Number(u.id) === 1 || String(u.username).toLowerCase() === OWNER_USERNAME().toLowerCase());
+const ONLINE_MS = 60 * 1000;
+const seenOf = (lastSeen) => {
+  const t = lastSeen ? Date.parse(lastSeen) : NaN;
+  return { online: Number.isFinite(t) && Date.now() - t < ONLINE_MS, last_seen: lastSeen || null };
+};
 const ownerOnly = (req, res, next) => { if (!isOwner(req.user)) return err(res, 403, 'Tylko właściciel ma dostęp.'); next(); };
 const bearer = req => {
   const t = (req.headers.authorization || '').replace(/^Bearer /, '');
@@ -59,6 +64,15 @@ app.post('/api/auth/login', (req, res) => {
   res.json({ user: { id: u.id, username: u.username }, token: tok(u) });
 });
 app.get('/api/me', auth, (req, res) => res.json({ user: req.user }));
+
+app.post('/api/presence', auth, (req, res) => {
+  const last_seen = new Date().toISOString();
+  db.prepare('UPDATE users SET last_seen=? WHERE id=?').run(last_seen, req.user.id);
+  res.json({ ok: true, ...seenOf(last_seen) });
+});
+app.get('/api/users', auth, (_q, res) => res.json({ users: db.prepare(
+  'SELECT id, username, last_seen FROM users ORDER BY username COLLATE NOCASE').all()
+  .map(u => ({ id: u.id, username: u.username, ...seenOf(u.last_seen), is_owner: isOwner(u) })) }));
 
 app.get('/api/users/:id/rep', (req, res) => {
   const id = numId(req.params.id);
