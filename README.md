@@ -18,6 +18,7 @@ Ustawienia (zmienne środowiskowe, wzór w `.env.example`): `PORT`, `JWT_SECRET`
 | GET | /api/lfd | lista ogłoszeń |
 | POST | /api/lfd | `{role,rank,text}` (zalogowany) |
 | DELETE | /api/lfd/:id | usuń swoje ogłoszenie |
+| GET | /api/conversations | lista rozmów (rozmówca, ostatnia wiadomość) |
 | GET/POST | /api/messages/:userId | wiadomości (stub, bez live) |
 
 Błędy zawsze jako `{ "error": "komunikat po polsku" }`.
