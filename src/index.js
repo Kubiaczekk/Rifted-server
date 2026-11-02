@@ -48,6 +48,15 @@ app.delete('/api/lfd/:id', auth, (req, res) => {
   db.prepare('DELETE FROM lfd_posts WHERE id=?').run(p.id); res.json({ ok: true });
 });
 
+// Lista rozmów zalogowanego użytkownika (ostatnia wiadomość; brak flag przeczytania → bez unread)
+app.get('/api/conversations', auth, (req, res) => res.json({ conversations: db.prepare(`
+  SELECT c.other_id AS user_id, u.username, m.text AS last_text, m.created_at AS last_at, m.from_id = ? AS last_from_me
+  FROM (SELECT CASE WHEN from_id=? THEN to_id ELSE from_id END AS other_id, MAX(id) AS last_id
+        FROM messages WHERE from_id=? OR to_id=? GROUP BY other_id) c
+  JOIN messages m ON m.id=c.last_id JOIN users u ON u.id=c.other_id
+  ORDER BY c.last_id DESC LIMIT 100`).all(req.user.id, req.user.id, req.user.id, req.user.id)
+  .map(r => ({ ...r, last_from_me: !!r.last_from_me })) }));
+
 // Wiadomości – stub (bez czasu rzeczywistego; później WebSocket)
 app.get('/api/messages/:userId', auth, (req, res) => res.json({ messages: db.prepare(
   `SELECT * FROM messages WHERE (from_id=? AND to_id=?) OR (from_id=? AND to_id=?) ORDER BY id LIMIT 200`)
