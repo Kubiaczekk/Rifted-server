@@ -44,6 +44,52 @@ const winPct = v => {
   const pct = n >= 0 && n <= 1 ? n * 100 : n;
   return Math.round(pct * 10) / 10;
 };
+const tierName = v => { const s = String(v || '').trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : ''; };
+const topOtp = rows => rows.filter(p => p.nick).sort((a, b) => b.lp - a.lp).slice(0, 10);
+async function otpFromUgg(id) {
+  try {
+    const upstream = await fetch('https://u.gg/api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'https://u.gg', Referer: 'https://u.gg/', 'User-Agent': 'Mozilla/5.0' },
+      body: JSON.stringify({ query: OTP_QUERY, variables: { id } }),
+      signal: AbortSignal.timeout(4000),
+    });
+    const data = await upstream.json().catch(() => null);
+    const raw = data?.data?.getChampionOtpStats;
+    if (!upstream.ok || !Array.isArray(raw) || !raw.length) return null;
+    return topOtp(raw.map(p => ({
+      nick: p.riotUserName ?? '', tag: p.riotTagLine ?? '', region: String(p.regionId ?? '').toLowerCase(),
+      tier: tierName(p.tier), rank: p.rank ?? '', lp: Number(p.lp) || 0, winRate: winPct(p.winRate),
+      games: Number(p.gamesPlayed) || 0, iconId: p.iconId ?? null,
+    })));
+  } catch { return null; }
+}
+// u.gg/api is behind Cloudflare on datacenter IPs. DeepLOL's CDN is open and lists the same OTP ranking.
+async function otpFromDeeplol(id) {
+  const url = new URL('https://b2c-api-cdn.deeplol.gg/champion/mastery_rank');
+  url.searchParams.set('platform_id', 'All');
+  url.searchParams.set('lane', 'All');
+  url.searchParams.set('champion_id', String(id));
+  url.searchParams.set('cnt', '100');
+  const upstream = await fetch(url, {
+    headers: { Accept: 'application/json', Origin: 'https://www.deeplol.gg', Referer: 'https://www.deeplol.gg/', 'User-Agent': 'Mozilla/5.0' },
+    signal: AbortSignal.timeout(12000),
+  });
+  const data = await upstream.json().catch(() => null);
+  const raw = data?.data_list;
+  if (!upstream.ok || !Array.isArray(raw)) return null;
+  return topOtp(raw.filter(p => Number(p.champion_id) === id).map(p => ({
+    nick: p.riot_id_name || p.summoner_name || p.name || '',
+    tag: p.riot_id_tag_line || '',
+    region: String(p.platform_id || '').toLowerCase(),
+    tier: tierName(p.tier),
+    rank: '',
+    lp: Number(p.lp) || 0,
+    winRate: winPct(p.win_rate),
+    games: Number(p.games) || 0,
+    iconId: p.icon_id ?? p.profile_icon_id ?? null,
+  })));
+}
 
 app.get('/api/health', (_q, r) => r.json({ ok: true }));
 app.post('/api/auth/register', (req, res) => {
@@ -102,30 +148,16 @@ app.get('/api/users/:id', (req, res) => {
   res.json({ user: { ...u, plus, minus } });
 });
 
-// Poradniki: publiczny proxy na OTP / top graczy z u.gg (cache 10 min na championId)
+// Poradniki: OTP / top gracze. Najpierw u.gg, a gdy Cloudflare zablokuje — ranking DeepLOL. Cache 10 min.
 app.get('/api/champions/:championId/otp', async (req, res) => {
   const id = numId(req.params.championId);
   if (!id) return err(res, 400, 'Nieprawidłowy identyfikator bohatera.');
   const hit = otpCache.get(id);
   if (hit && hit.exp > Date.now()) return res.json({ players: hit.players });
   try {
-    const upstream = await fetch('https://u.gg/api', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Origin: 'https://u.gg', Referer: 'https://u.gg/', 'User-Agent': 'Mozilla/5.0' },
-      body: JSON.stringify({ query: OTP_QUERY, variables: { id } }),
-      signal: AbortSignal.timeout(15000),
-    });
-    const data = await upstream.json().catch(() => null);
-    const raw = data?.data?.getChampionOtpStats;
-    if (!upstream.ok || !Array.isArray(raw)) {
-      console.error('u.gg OTP', upstream.status);
-      return err(res, 502, 'Nie udało się pobrać statystyk OTP.');
-    }
-    const players = raw.map(p => ({
-      nick: p.riotUserName ?? '', tag: p.riotTagLine ?? '', region: p.regionId ?? '',
-      tier: p.tier ?? '', rank: p.rank ?? '', lp: Number(p.lp) || 0, winRate: winPct(p.winRate),
-      games: Number(p.gamesPlayed) || 0, iconId: p.iconId ?? null,
-    })).sort((a, b) => b.lp - a.lp).slice(0, 10);
+    let players = await otpFromUgg(id);
+    if (!players?.length) players = await otpFromDeeplol(id);
+    if (!players) return err(res, 502, 'Nie udało się pobrać statystyk OTP.');
     otpCache.set(id, { exp: Date.now() + OTP_TTL, players });
     res.json({ players });
   } catch (e) { console.error(e); err(res, 502, 'Nie udało się pobrać statystyk OTP.'); }

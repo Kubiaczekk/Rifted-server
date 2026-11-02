@@ -25,7 +25,7 @@ Ustawienia (zmienne środowiskowe, wzór w `.env.example`): `PORT`, `JWT_SECRET`
 | GET | /api/users/:id | profil publiczny: `{ user: { id, username, created_at, plus, minus } }` |
 | GET | /api/users/:id/rep | `{ plus, minus, mine }` — `mine` to `1`, `-1` albo `0` (przy nagłówku Bearer; bez tokenu `0`) |
 | POST | /api/users/:id/rep | `{ value: 1 \| -1 }` (zalogowany). Nie można ocenić siebie. Kolejna ocena tej samej pary nadpisuje poprzednią. |
-| GET | /api/champions/:championId/otp | publiczny proxy OTP z u.gg. `championId` to numer Riot (np. `103` = Ahri). Odpowiedź: `{ players: [{ nick, tag, region, tier, rank, lp, winRate, games, iconId }] }` — max 10, sortowanie po LP malejąco. Cache w pamięci 10 minut. Błąd upstream: `502`. |
+| GET | /api/champions/:championId/otp | publiczny ranking OTP. `championId` to numer Riot (np. `103` = Ahri). Najpierw u.gg, a gdy Cloudflare blokuje serwer — DeepLOL `champion/mastery_rank`. Odpowiedź: `{ players: [{ nick, tag, region, tier, rank, lp, winRate, games, iconId }] }` — max 10, sortowanie po LP malejąco. Cache w pamięci 10 minut. Błąd upstream: `502`. |
 | GET | /api/admin/overview | właściciel. `{ users: [{ id, username, created_at }], lfd: { posts }, messages: { count }, rep: { plus, minus } }` |
 | GET | /api/admin/users | właściciel. `{ users: [{ id, username, created_at }] }` |
 | DELETE | /api/admin/users/:id | właściciel. Nie można usunąć własnego konta. Kasuje też ogłoszenia, wiadomości i oceny tego gracza. |
