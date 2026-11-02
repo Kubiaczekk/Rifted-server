@@ -1,6 +1,10 @@
 import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs'; import path from 'node:path';
-const p = process.env.DB_PATH || './data/rifted.db';
+const defaultPath = () => {
+  try { if (fs.existsSync('/var/data') && fs.statSync('/var/data').isDirectory()) return '/var/data/rifted.db'; } catch {}
+  return './data/rifted.db';
+};
+const p = process.env.DB_PATH || defaultPath();
 fs.mkdirSync(path.dirname(p), { recursive: true });
 export const db = new DatabaseSync(p);
 db.exec(`

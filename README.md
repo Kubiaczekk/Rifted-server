@@ -9,6 +9,8 @@ Backend dla Rifted (konta, ogłoszenia LFD, wiadomości, reputacja, OTP champion
 
 Ustawienia (zmienne środowiskowe, wzór w `.env.example`): `PORT`, `JWT_SECRET` (**ustaw własny długi tekst na produkcji!**), `DB_PATH`, `CORS_ORIGIN`, `OWNER_USERNAME` (domyślnie `kubvss` — ten nick oraz konto o `id` 1 mają dostęp do `/api/admin/*`).
 
+`DB_PATH`: gdy zmienna nie jest ustawiona i istnieje katalog `/var/data` (dysk Render), baza to `/var/data/rifted.db`. W przeciwnym razie `./data/rifted.db`.
+
 ## API
 | Metoda | Ścieżka | Opis |
 |---|---|---|
@@ -39,8 +41,8 @@ Błędy zawsze jako `{ "error": "komunikat po polsku" }`.
 ## Następne kroki (wrzucenie do internetu) — dla początkujących
 1. **GitHub**: załóż konto na github.com i wrzuć tam folder `rifted-server` jako repozytorium.
 2. **Hosting serwera — Railway** (railway.app) lub **Render** (render.com): zaloguj się przez GitHub → „New Project” → „Deploy from GitHub repo” → wybierz `rifted-server`. Start command: `npm start`.
-3. **Zmienne**: w panelu hostingu dodaj `JWT_SECRET` (losowy długi tekst), `DB_PATH=/data/rifted.db` i ewentualnie `OWNER_USERNAME` (domyślnie `kubvss`).
-4. **Dysk na bazę**: dodaj „Volume” (Railway) / „Disk” (Render) podpięty pod `/data` — inaczej baza znika przy każdym restarcie.
+3. **Zmienne**: w panelu hostingu dodaj `JWT_SECRET` (losowy długi tekst) i ewentualnie `OWNER_USERNAME` (domyślnie `kubvss`). Na Render ustaw `DB_PATH=/var/data/rifted.db`.
+4. **Dysk na bazę**: dodaj „Disk” (Render) podpięty pod `/var/data` albo „Volume” (Railway) pod inną ścieżkę i ustaw `DB_PATH` na plik na tym dysku. Bez trwałego dysku baza znika przy każdym restarcie. Gdy katalog `/var/data` istnieje, serwer sam wybiera `/var/data/rifted.db`.
 5. Dostaniesz adres typu `https://rifted-server.up.railway.app` — sprawdź `/api/health`.
 6. **Podłączenie aplikacji**: w `rifted-desktop` zamienić lokalne zapisywanie (localStorage) na zapytania do tego adresu.
 7. **Front**: `rifted-desktop` wrzucić na Vercel/Netlify (strona) i/lub zbudować instalator desktop (Electron/Tauri).
